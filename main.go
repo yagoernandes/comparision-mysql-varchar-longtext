@@ -33,13 +33,19 @@ func main() {
 	}
 
 	// Função para consultar a tabela test_varchar
-	queryAndPrint(db, "test_varchar")
+	start := time.Now()
+	queryDB(db, "test_varchar", 10)
+	fmt.Printf("Tempo de execução test_varchar: %v\n", time.Since(start))
 
 	// Função para consultar a tabela test_longtext
-	queryAndPrint(db, "test_longtext")
+	start = time.Now()
+	queryDB(db, "test_longtext", 10)
+	fmt.Printf("Tempo de execução test_longtext: %v\n", time.Since(start))
 
 	// Função para consultar a tabela test_json
-	queryAndPrint(db, "test_json")
+	start = time.Now()
+	queryDB(db, "test_json", 10)
+	fmt.Printf("Tempo de execução test_json: %v\n", time.Since(start))
 }
 
 func makeConnection() (*sql.DB, error) {
@@ -53,8 +59,8 @@ func makeConnection() (*sql.DB, error) {
 }
 
 // Função para realizar a query e imprimir os resultados
-func queryAndPrint(db *sql.DB, tableName string) {
-	query := fmt.Sprintf("SELECT id, tags FROM %s", tableName)
+func queryDB(db *sql.DB, tableName string, limit int) {
+	query := fmt.Sprintf("SELECT id, tags FROM %s ORDER BY id DESC LIMIT %d", tableName, limit)
 	rows, err := db.Query(query)
 	if err != nil {
 		log.Printf("Erro ao consultar a tabela %s: %v", tableName, err)
@@ -111,5 +117,66 @@ func generateRandomTags() string {
 	for i := range tags {
 		tags[i] = letters[rand.Intn(len(letters))]
 	}
+	randomFloat := rand.Float64() * 1000000
+	tags = []rune(fmt.Sprintf("{\"%s\": %v}", string(tags), randomFloat))
 	return string(tags)
+}
+
+// mysqlslap --user=root --password=root --host=localhost \
+//           --concurrency=100 --iterations=20 --number-of-queries=1000 \
+//           --query="INSERT INTO accumulator (mod_accum, accum_id, accum_owner_id, accum_window, sum_value, version, created_at, updated_at, db ,count_value, min_seq_id, max_seq_id, last_batch_oldest_published_time, last_batch_average_published_time, last_batch_oldest_start_processing_time, last_batch_average_start_processing_time, tags_string) VALUES (88, '1', '807897171', 1711335600, '3000.00000000', 1, '2024-03-25 04:14:26.328457641', '2024-03-25 04:14:26.328457711', 'accumalph1', 1, 473426081, 473426081, '2024-03-25 04:14:24', '2024-03-25 04:14:24', '2024-03-25 04:14:24', '2024-03-25 04:14:24', '{\"approved\":3000.00000000}') ON DUPLICATE KEY UPDATE  sum_value = (VALUES(sum_value) + sum_value), count_value = (VALUES(count_value) + count_value), version = (version + 1), updated_at = VALUES(updated_at), max_seq_id = VALUES(max_seq_id), last_batch_oldest_published_time = VALUES(last_batch_oldest_published_time), last_batch_average_published_time = VALUES(last_batch_average_published_time), last_batch_oldest_start_processing_time = VALUES(last_batch_oldest_start_processing_time),
+
+func insertRandomDataBatch(db *sql.DB, tableName string, batchSize int) {
+	rand.Seed(uint64(time.Now().UnixNano()))
+
+	var query string
+	switch tableName {
+	case "test_varchar":
+		query = fmt.Sprintf("INSERT INTO %s (tags) VALUES (?)", tableName)
+	case "test_longtext":
+		query = fmt.Sprintf("INSERT INTO %s (tags) VALUES (?)", tableName)
+	case "test_json":
+		query = fmt.Sprintf("INSERT INTO %s (tags) VALUES (JSON_ARRAY(?))", tableName)
+	default:
+		log.Printf("Tabela %s não suportada para inserção", tableName)
+		return
+	}
+
+	// Iniciar uma transação
+	tx, err := db.Begin()
+	if err != nil {
+		log.Printf("Erro ao iniciar transação: %v", err)
+		return
+	}
+
+	// Preparar a declaração de inserção
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		log.Printf("Erro ao preparar declaração de inserção: %v", err)
+		return
+	}
+
+	// Executar a declaração de inserção em lote
+	for i := 0; i < batchSize; i++ {
+		tags := generateRandomTags()
+		_, err = stmt.Exec(tags)
+		if err != nil {
+			log.Printf("Erro ao executar declaração de inserção em lote: %v", err)
+			return
+		}
+	}
+
+	// Commit da transação
+	err = tx.Commit()
+	if err != nil {
+		log.Printf("Erro ao fazer commit da transação: %v", err)
+		return
+	}
+
+	// Fechar a declaração de inserção
+	err = stmt.Close()
+	if err != nil {
+		log.Printf("Erro ao fechar declaração de inserção: %v", err)
+		return
+	}
 }
