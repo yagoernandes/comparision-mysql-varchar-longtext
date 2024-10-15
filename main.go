@@ -40,20 +40,20 @@ func main() {
 	// Função para consultar a tabela test_json
 	start := time.Now()
 	queryDB(db, "test_json", 10)
-	// timeJson := time.Since(start)
-	// fmt.Printf("Tempo de execução test_json: %v\n", timeJson)
+	timeJson := time.Since(start)
+	fmt.Printf("Tempo de execução test_json: %v\n", timeJson)
 
 	// Função para consultar a tabela test_varchar
 	start = time.Now()
 	queryDB(db, "test_varchar", 10)
 	timeVarchar := time.Since(start)
-	// fmt.Printf("Tempo de execução test_varchar: %v\n", timeVarchar)
+	fmt.Printf("Tempo de execução test_varchar: %v\n", timeVarchar)
 
 	// Função para consultar a tabela test_longtext
 	start = time.Now()
 	queryDB(db, "test_longtext", 10)
 	timeLongtext := time.Since(start)
-	// fmt.Printf("Tempo de execução test_longtext: %v\n", timeLongtext)
+	fmt.Printf("Tempo de execução test_longtext: %v\n", timeLongtext)
 
 	fmt.Printf("Diferença de tempo entre test_varchar e test_longtext: %v (%.2f%% mais rápido)\n", timeVarchar-timeLongtext, (float64(timeVarchar.Microseconds())/float64(timeLongtext.Microseconds())*100)-100)
 }
