@@ -1,0 +1,14 @@
+CREATE TABLE test_varchar (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    tags VARCHAR(255)
+);
+
+CREATE TABLE test_longtext (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    tags LONGTEXT
+);
+
+CREATE TABLE test_json (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    tags JSON
+);
