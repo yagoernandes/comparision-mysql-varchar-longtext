@@ -18,6 +18,11 @@ const (
 	DBNAME   = "dbtest"
 )
 
+type DbRegister struct {
+	ID   int
+	Tags string
+}
+
 func main() {
 	// Configuração de conexão
 	db, err := makeConnection()
@@ -32,20 +37,25 @@ func main() {
 		log.Fatal("Erro ao conectar ao banco de dados:", err)
 	}
 
-	// Função para consultar a tabela test_varchar
+	// Função para consultar a tabela test_json
 	start := time.Now()
+	queryDB(db, "test_json", 10)
+	// timeJson := time.Since(start)
+	// fmt.Printf("Tempo de execução test_json: %v\n", timeJson)
+
+	// Função para consultar a tabela test_varchar
+	start = time.Now()
 	queryDB(db, "test_varchar", 10)
-	fmt.Printf("Tempo de execução test_varchar: %v\n", time.Since(start))
+	timeVarchar := time.Since(start)
+	// fmt.Printf("Tempo de execução test_varchar: %v\n", timeVarchar)
 
 	// Função para consultar a tabela test_longtext
 	start = time.Now()
 	queryDB(db, "test_longtext", 10)
-	fmt.Printf("Tempo de execução test_longtext: %v\n", time.Since(start))
+	timeLongtext := time.Since(start)
+	// fmt.Printf("Tempo de execução test_longtext: %v\n", timeLongtext)
 
-	// Função para consultar a tabela test_json
-	start = time.Now()
-	queryDB(db, "test_json", 10)
-	fmt.Printf("Tempo de execução test_json: %v\n", time.Since(start))
+	fmt.Printf("Diferença de tempo entre test_varchar e test_longtext: %v (%.2f%% mais rápido)\n", timeVarchar-timeLongtext, (float64(timeVarchar.Microseconds())/float64(timeLongtext.Microseconds())*100)-100)
 }
 
 func makeConnection() (*sql.DB, error) {
@@ -59,29 +69,36 @@ func makeConnection() (*sql.DB, error) {
 }
 
 // Função para realizar a query e imprimir os resultados
-func queryDB(db *sql.DB, tableName string, limit int) {
+func queryDB(db *sql.DB, tableName string, limit int) ([]DbRegister, error) {
+	rowsFetched := make([]DbRegister, 0)
 	query := fmt.Sprintf("SELECT id, tags FROM %s ORDER BY id DESC LIMIT %d", tableName, limit)
 	rows, err := db.Query(query)
 	if err != nil {
 		log.Printf("Erro ao consultar a tabela %s: %v", tableName, err)
-		return
+		return nil, err
 	}
 	defer rows.Close()
 
-	fmt.Printf("Resultados da tabela %s:\n", tableName)
+	// fmt.Printf("Resultados da tabela %s:\n", tableName)
 	for rows.Next() {
 		var id int
 		var tags string
 		if err := rows.Scan(&id, &tags); err != nil {
 			log.Println("Erro ao escanear resultado:", err)
-			return
+			return nil, err
 		}
-		fmt.Printf("ID: %d, Tags: %s\n", id, tags)
+		// fmt.Printf("ID: %d, Tags: %s\n", id, tags)
+		rowsFetched = append(rowsFetched, DbRegister{
+			ID:   id,
+			Tags: tags,
+		})
 	}
 
 	if err := rows.Err(); err != nil {
 		log.Println("Erro ao iterar pelos resultados:", err)
+		return nil, err
 	}
+	return rowsFetched, nil
 }
 
 func insertRandomData(db *sql.DB, tableName string) {
